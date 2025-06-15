@@ -1,32 +1,16 @@
 #!/bin/bash
 
-# === Configuration ===
-INTERFACE="enp4s0"
-STATIC_IP="103.193.88.134/24"
-GATEWAY="103.193.88.1"
-DNS1="8.8.8.8"
-DNS2="1.1.1.1"
-NETPLAN_FILE="/etc/netplan/50-cloud-init.yaml"
+echo "[*] Stopping Open vSwitch services..."
+sudo systemctl stop openvswitch-switch
+sudo systemctl disable openvswitch-switch
 
-# === Write new netplan config ===
-sudo tee $NETPLAN_FILE > /dev/null <<EOF
-network:
-  version: 2
-  ethernets:
-    $INTERFACE:
-      dhcp4: no
-      optional: true
-      addresses:
-        - $STATIC_IP
-      routes:
-        - to: 0.0.0.0/0
-          via: $GATEWAY
-      nameservers:
-        addresses:
-          - $DNS1
-          - $DNS2
-EOF
+echo "[*] Purging Open vSwitch packages..."
+sudo apt purge -y openvswitch-switch openvswitch-common openvswitch-datapath-dkms
 
-# === Apply netplan ===
-echo "Applying netplan..."
-sudo netplan apply && echo "✅ Netplan applied successfully." || echo "❌ Failed to apply netplan. Run: sudo netplan --debug apply"
+echo "[*] Removing Open vSwitch residual files..."
+sudo rm -rf /etc/openvswitch /var/run/openvswitch /var/log/openvswitch
+
+echo "[*] Autoremoving unused dependencies..."
+sudo apt autoremove --purge -y
+
+echo "[✔] Open vSwitch completely removed from your system."
