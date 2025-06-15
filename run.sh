@@ -1,16 +1,24 @@
 #!/bin/bash
 
-echo "[*] Stopping Open vSwitch services..."
-sudo systemctl stop openvswitch-switch
-sudo systemctl disable openvswitch-switch
+# Write new static IP config to netplan
+cat <<EOF | sudo tee /etc/netplan/50-cloud-init.yaml > /dev/null
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp4s0:
+      dhcp4: no
+      optional: true
+      addresses:
+        - 103.193.88.134/24
+      gateway4: 10.13.12.1
+      nameservers:
+        addresses:
+          - 10.10.0.1
+          - 8.8.8.8
+EOF
 
-echo "[*] Purging Open vSwitch packages..."
-sudo apt purge -y openvswitch-switch openvswitch-common openvswitch-datapath-dkms
+# Apply the new config
+sudo netplan apply
 
-echo "[*] Removing Open vSwitch residual files..."
-sudo rm -rf /etc/openvswitch /var/run/openvswitch /var/log/openvswitch
-
-echo "[*] Autoremoving unused dependencies..."
-sudo apt autoremove --purge -y
-
-echo "[✔] Open vSwitch completely removed from your system."
+echo "✅ Static IP 103.193.88.134 set with gateway 10.13.12.1 and DNS 10.10.0.1, 8.8.8.8"
