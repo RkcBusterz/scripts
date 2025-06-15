@@ -1,22 +1,32 @@
 #!/bin/bash
 
-echo "🔧 Stopping Open vSwitch services..."
-sudo systemctl stop openvswitch-switch 2>/dev/null
-sudo systemctl disable openvswitch-switch 2>/dev/null
+# === Configuration ===
+INTERFACE="enp4s0"
+STATIC_IP="103.193.88.134/24"
+GATEWAY="103.193.88.1"
+DNS1="8.8.8.8"
+DNS2="1.1.1.1"
+NETPLAN_FILE="/etc/netplan/50-cloud-init.yaml"
 
-echo "🧹 Purging Open vSwitch packages..."
-sudo apt purge -y openvswitch-switch openvswitch-common openvswitch-datapath-dkms
+# === Write new netplan config ===
+sudo tee $NETPLAN_FILE > /dev/null <<EOF
+network:
+  version: 2
+  ethernets:
+    $INTERFACE:
+      dhcp4: no
+      optional: true
+      addresses:
+        - $STATIC_IP
+      routes:
+        - to: 0.0.0.0/0
+          via: $GATEWAY
+      nameservers:
+        addresses:
+          - $DNS1
+          - $DNS2
+EOF
 
-echo "🧼 Autoremoving unused packages..."
-sudo apt autoremove --purge -y
-
-echo "🗑️ Removing Open vSwitch configuration and data files..."
-sudo rm -rf /etc/openvswitch/
-sudo rm -rf /var/log/openvswitch/
-sudo rm -rf /var/run/openvswitch/
-sudo rm -f /etc/netplan/ovs.yaml
-
-echo "🔧 Removing any DKMS modules related to Open vSwitch..."
-sudo dkms remove openvswitch/ --all 2>/dev/null
-
-echo "✅ Done. You may want to reboot to fully clean up the system."
+# === Apply netplan ===
+echo "Applying netplan..."
+sudo netplan apply && echo "✅ Netplan applied successfully." || echo "❌ Failed to apply netplan. Run: sudo netplan --debug apply"
